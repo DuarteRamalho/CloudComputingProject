@@ -1,0 +1,61 @@
+{% extends "base.html" %} {% block content %}
+<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+  <h2 class="text-2xl font-bold mb-4">Upload File</h2>
+  <form
+    action="{{ url_for('upload_file') }}"
+    method="post"
+    enctype="multipart/form-data"
+  >
+    <div class="mb-4">
+      <input
+        type="file"
+        name="file"
+        id="file"
+        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+      />
+    </div>
+    <div class="flex items-center justify-between">
+      <button
+        type="submit"
+        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+      >
+        Upload
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+  <h2 class="text-2xl font-bold mb-4">Your Files</h2>
+  <table class="table-auto w-full">
+    <thead>
+      <tr>
+        <th class="px-4 py-2">Filename</th>
+        <th class="px-4 py-2">Version</th>
+        <th class="px-4 py-2">Size</th>
+        <th class="px-4 py-2">Upload Date</th>
+        <th class="px-4 py-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for file in files %}
+      <tr>
+        <td class="border px-4 py-2">{{ file.filename }}</td>
+        <td class="border px-4 py-2">{{ file.version }}</td>
+        <td class="border px-4 py-2">{{ file.size }} bytes</td>
+        <td class="border px-4 py-2">
+          {{ file.upload_date.strftime('%Y-%m-%d %H:%M:%S') }}
+        </td>
+        <td class="border px-4 py-2">
+          <a
+            href="{{ url_for('download_file', file_id=file.id) }}"
+            class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded"
+            >Download</a
+          >
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
