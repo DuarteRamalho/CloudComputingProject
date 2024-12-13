@@ -178,6 +178,50 @@ def download_file(file_id):
                      as_attachment=True,
                      download_name=file.filename)
 
+@app.route('/delete_file/<int:file_id>', methods=['POST'])
+@login_required
+def delete_file(file_id):
+    print(f"Attempting to delete file with ID: {file_id}")  # Debug log
+    
+    # Get the file or return 404
+    file = File.query.get_or_404(file_id)
+
+    # Check if the user owns the file
+    if file.user_id != current_user.id:
+        flash('Unauthorized access')
+        return redirect(url_for('index'))
+
+    try:
+        # Store filename before deletion for logging
+        filename = file.filename
+        
+        # Delete from database first
+        db.session.delete(file)
+        db.session.commit()
+        print(f"File {filename} deleted from database")  # Debug log
+
+        # Log the deletion
+        log_action(current_user.id, 'delete', f'File: {filename}')
+        
+        # Delete from file storage (S3 or local storage)
+        try:
+            file_storage.delete_file(filename, current_user.id)
+            print(f"File {filename} deleted from storage")  # Debug log
+        except Exception as storage_error:
+            print(f"Storage deletion error: {str(storage_error)}")  # Debug log
+            # Even if storage deletion fails, the database record is already deleted
+            flash('File deleted from database but there might be an issue with storage deletion')
+            return redirect(url_for('index'))
+
+        flash('File deleted successfully')
+        print("File deletion completed successfully")  # Debug log
+
+    except Exception as e:
+        print(f"Error during file deletion: {str(e)}")  # Debug log
+        db.session.rollback()
+        flash('Error deleting file')
+
+    return redirect(url_for('index'))
 
 @app.route('/logs')
 @login_required

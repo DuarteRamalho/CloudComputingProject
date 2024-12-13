@@ -15,22 +15,19 @@ class FileStorage:
 
     def test_connection(self):
         try:
-            # Print configuration variables
             print("\nAWS Configuration:")
             print(f"AWS Region: {os.environ.get('AWS_REGION', 'Not set')}")
             print(f"AWS Access Key ID: {os.environ.get('AWS_ACCESS_KEY_ID', 'Not set')}")
-            # Print partial Secret Key for security
+
             secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY', 'Not set')
             masked_secret = secret_key[:4] + '*' * (len(secret_key)-8) + secret_key[-4:] if secret_key != 'Not set' else 'Not set'
             print(f"AWS Secret Access Key: {masked_secret}")
             print(f"S3 Bucket Name: {self.bucket_name}")
             
-            # Test bucket access
             self.s3_client.head_bucket(Bucket=self.bucket_name)
             print(f"\nConnection test successful!")
             print(f"Successfully connected to bucket: {self.bucket_name}")
             
-            # List a few objects in the bucket (optional)
             try:
                 response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, MaxKeys=5)
                 if 'Contents' in response:
@@ -65,8 +62,6 @@ class FileStorage:
             print("This might indicate incorrect AWS credentials or configuration.")
             return False
 
-
-
     def save_file(self, file, filename, user_id):
         try:
             file_path = self.get_file_path(filename, user_id)
@@ -81,6 +76,7 @@ class FileStorage:
                 self.bucket_name,
                 file_path
             )
+            print(f"Successfully uploaded file to S3: {file_path}")
             return True
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code', 'Unknown')
@@ -91,22 +87,58 @@ class FileStorage:
             print(f"Unexpected error during file upload: {str(e)}")
             return False
 
-
     def get_file_path(self, filename, user_id):
         return f"{user_id}/{filename}"
 
     def delete_file(self, filename, user_id):
         try:
-            self.s3_client.delete_object(Bucket=self.bucket_name, Key=self.get_file_path(filename, user_id))
+            file_path = self.get_file_path(filename, user_id)
+            print(f"Attempting to delete file: {file_path} from bucket: {self.bucket_name}")
+            
+            # Check if file exists before deleting
+            try:
+                self.s3_client.head_object(Bucket=self.bucket_name, Key=file_path)
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    print(f"File not found in S3: {file_path}")
+                    return False
+                else:
+                    raise
+
+            # Delete the file
+            self.s3_client.delete_object(
+                Bucket=self.bucket_name,
+                Key=file_path
+            )
+            print(f"Successfully deleted file from S3: {file_path}")
+            return True
+            
         except ClientError as e:
-            print(f"Error deleting file from S3: {e}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            error_message = e.response.get('Error', {}).get('Message', 'Unknown error')
+            print(f"AWS Error during deletion - Code: {error_code}, Message: {error_message}")
             return False
-        return True
+        except Exception as e:
+            print(f"Unexpected error during file deletion: {str(e)}")
+            return False
 
     def download_file(self, filename, user_id):
         try:
-            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=self.get_file_path(filename, user_id))
+            file_path = self.get_file_path(filename, user_id)
+            print(f"Attempting to download file: {file_path}")
+            
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=file_path
+            )
+            print(f"Successfully downloaded file from S3: {file_path}")
             return response['Body'].read()
+            
         except ClientError as e:
-            print(f"Error downloading file from S3: {e}")
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            error_message = e.response.get('Error', {}).get('Message', 'Unknown error')
+            print(f"AWS Error during download - Code: {error_code}, Message: {error_message}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error during file download: {str(e)}")
             return None
